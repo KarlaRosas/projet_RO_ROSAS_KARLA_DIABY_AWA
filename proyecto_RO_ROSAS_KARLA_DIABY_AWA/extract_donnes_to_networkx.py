@@ -66,10 +66,6 @@ def creationEntity(id, type, b_entity):
 
 
 
-#Main test
-if __name__ == '__main__':
-    file_path = './truck_instance_base.data'
-    extract_donnes(file_path)
 
 
 
