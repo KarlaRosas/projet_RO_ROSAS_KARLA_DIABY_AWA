@@ -2,16 +2,14 @@
 #Salut
 import networkx as nx
 
-SOURCE = 'S'
-TARGET = 'T'
+
 
 
 def extract_donnes(file_path):
     Entity = []
     graph =nx.DiGraph()
 
-    graph.add_node(SOURCE)
-    graph.add_node(TARGET)
+
     with open(file_path, 'r') as f_in:
         # Extract data from header
         header = f_in.readline()
@@ -31,14 +29,22 @@ def extract_donnes(file_path):
                 objet = creationEntity(id, type, b_entity)
                 Entity.append(objet)
             elif block == 'ROADS':
-                road_start, road_end, cap_road, alpha_r, beta_r = line_split
-                print("road_start, road_end, cap_road, alpha_r, beta_r: ",road_start, road_end, cap_road, alpha_r, beta_r)
+                #road_start, road_end, cap_road, alpha_r, beta_r = line_split
+                road_start = line_split[0]
+                road_end = line_split[1]
+                cap_road = int(line_split[2])
+                alpha_r = int(line_split[3])
+                beta_r = int(line_split[4])
+                #add_nodes(graph, road_start, road_end, cap_road, alpha_r, beta_r)
+                add_edge(graph,road_start,road_end,cap_road,alpha_r,beta_r)
+                #print("road_start, road_end, cap_road, alpha_r, beta_r: ",road_start, road_end, cap_road, alpha_r, beta_r)
+            else:
+                exit(f'ERROR: line = {line}')
 
-
-        print("Block",block)
-        print("Taille liste", len(Entity))
-        print("En la liste", Entity[2].id)
-        print("  Test d'exportation des données...")
+        #print("Block",block)
+        #print("Taille liste", len(Entity))
+        #print("En la liste", Entity[2].id)
+        #print("  Test d'exportation des données...")
 
     return graph
 
@@ -64,8 +70,11 @@ def creationEntity(id, type, b_entity):
 
     return entity1
 
+def add_nodes(graph, road_start, road_end, cap_road, alpha_r, beta_r):
 
+    graph.add_node(road_start, road_end, capacity = cap_road, essence = alpha_r, taux_adou = beta_r)
 
-
+def add_edge(graph,start,end, cap_road, alpha_r, beta_r):
+    graph.add_edge(start,end, cap=cap_road, essence=alpha_r, tauxdou = beta_r)
 
 
