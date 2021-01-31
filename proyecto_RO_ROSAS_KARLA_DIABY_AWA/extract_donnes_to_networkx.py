@@ -26,8 +26,9 @@ def extract_donnes(file_path):
                 block = ''
             elif block == 'ENTITIES':
                 id, type, b_entity = line_split
-                objet = creationEntity(id, type, b_entity)
-                Entity.append(objet)
+                graph.add_node(id,type=type, entity=b_entity)
+                #objet = creationEntity(id, type, b_entity)
+                #Entity.append(objet)
             elif block == 'ROADS':
                 #road_start, road_end, cap_road, alpha_r, beta_r = line_split
                 road_start = line_split[0]

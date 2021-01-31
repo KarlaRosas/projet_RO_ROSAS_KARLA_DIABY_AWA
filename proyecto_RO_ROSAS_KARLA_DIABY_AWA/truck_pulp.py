@@ -13,11 +13,20 @@ def set_model_cout_net(graph):
     # ------------------------------------------------------------------------ #
     prob = pl.LpProblem('The_benefice_max_net_problem', pl.LpMaximize)
 
-    print("Nodes", graph.nodes)
+    print("------- ")
+    print("Nodes", graph)
+
+    for k, v in graph.nodes(data=True):
+        print(k, v["type"], v["entity"])
     print("Edge", graph.edges)
     print("Edges,detailes", graph.adj)
 
+
+
+
     nx.write_graphml(graph, "test.graphml")
+
+
 
 
 
@@ -66,5 +75,6 @@ if __name__ == '__main__':
     file_path = 'truck_instance_base.data'
     graph = extract_donnes(file_path)
     #solve_cout_net()
+
     set_model_cout_net(graph)
 
