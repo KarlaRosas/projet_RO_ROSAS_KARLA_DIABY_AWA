@@ -6,23 +6,23 @@ import networkx as nx
 # ============================================================================ #
 
 
-def set_model_cout_net(graph):
+def set_model_cout_net(graph,p, start, n_clientsuppr, n_depsuppr):
     """Set the coût net problem's model."""
     # ------------------------------------------------------------------------ #
     # Linear problem with maximisation
     # ------------------------------------------------------------------------ #
     prob = pl.LpProblem('The_benefice_max_net_problem', pl.LpMaximize)
 
-    print("------- ")
-    print("Nodes", graph)
+    print("------------NODES------------")
 
     for k, v in graph.nodes(data=True):
         print(k, v["type"], v["entity"])
+
+    print("Nodes", graph.nodes)
     print("Edge", graph.edges)
-    print("Edges,detailes", graph.adj)
 
-
-
+    print("------------CONSTANTS------------")
+    print("P:", p, " start:", start, " Depôt Supr:", n_depsuppr, " Clients Supr:", n_clientsuppr)
 
     nx.write_graphml(graph, "test.graphml")
 
@@ -73,8 +73,8 @@ def solve_cout_net():
 if __name__ == '__main__':
 
     file_path = 'truck_instance_base.data'
-    graph = extract_donnes(file_path)
+    graph,p, start, n_clientsuppr, n_depsuppr = extract_donnes(file_path)
     #solve_cout_net()
 
-    set_model_cout_net(graph)
+    set_model_cout_net(graph,p, start, n_clientsuppr, n_depsuppr)
 
