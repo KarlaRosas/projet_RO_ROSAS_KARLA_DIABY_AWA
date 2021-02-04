@@ -1,5 +1,4 @@
 # -*- coding=utf-8 -*-
-#Salut
 import networkx as nx
 
 
