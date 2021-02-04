@@ -12,14 +12,6 @@ def set_model_cout_net(graph,p, start, n_clientsuppr, n_depsuppr):
     prob = pl.LpProblem('The_benefice_max_net_problem', pl.LpMaximize)
 
 
-    print("------------CONSTANTS------------")
-    print("P:", p, " start:", start, " Depôt Supr:", n_depsuppr, " Clients Supr:", n_clientsuppr)
-
-    nx.write_graphml(graph, "test.graphml")
-
-
-
-
 
     # ------------------------------------------------------------------------ #
     # Constants
@@ -33,7 +25,7 @@ def set_model_cout_net(graph,p, start, n_clientsuppr, n_depsuppr):
     # ------------------------------------------------------------------------ #
 
 
-# ---------------------------------------------------------------------------- #
+    # ---------------------------------------------------------------------------- #
     gpu = pl.LpVariable('gpu', lowBound=0, cat=pl.LpInteger)
     d_edge_gpu = pl.LpVariable.dicts('flow_gpu', graph.edges(),
                                       lowBound=0, cat=pl.LpInteger)
@@ -48,6 +40,7 @@ def set_model_cout_net(graph,p, start, n_clientsuppr, n_depsuppr):
     # ------------------------------------------------------------------------ #
     # The constraints
     # ------------------------------------------------------------------------ #
+
     # C1: d x PHI_0 + A x PHI = 0 (the flow conservation for each vertex)
     for v in graph.nodes():
         prob += calcul_d_mult_PHI_0(v, gpu) \
@@ -67,10 +60,10 @@ def calcul_d_mult_PHI_0(v, gpu):
     equation = 0
     if v == 'D1':
         equation -= gpu
-        print("ECUATION SOURCE", equation)
+
     elif v == 'D2':
         equation += gpu
-        print("ECUATION TARGET", equation)
+
     return equation
 
 
@@ -91,11 +84,14 @@ def solve_cout_net():
 
     file_path = 'truck_instance_base.data'
     graph,p, start, n_clientsuppr, n_depsuppr = extract_donnes(file_path)
-    #solve_cout_net()
+    nx.write_graphml(graph, "routes.graphml")
+
     prob, d_edge_gpu = set_model_cout_net(graph,p, start, n_clientsuppr, n_depsuppr)
+
     prob.solve(pl.PULP_CBC_CMD(logPath='./output_file/CBC_max_flow.log'))
     prob.solve(pl.PULP_CBC_CMD())
-# ------------------------------------------------------------------------ #
+
+    # ------------------------------------------------------------------------ #
     # Print the solver output
     # ------------------------------------------------------------------------ #
     print(f'Status:\n{pl.LpStatus[prob.status]}')
@@ -110,7 +106,8 @@ def solve_cout_net():
 
         print(f'EDGE = {edge} : FLOW = {edge_gpu}')
         graph.edges()[edge]['flow'] = edge_gpu
-        nx.write_graphml(graph, "test.graphml")
+
+
 
 
 #Main test
