@@ -4,7 +4,7 @@ ENTITIES {
 	D2	depot	-3
 	D3	depot	-5
 	C1	customer	8
-	C2	customer	10 noeuds
+	C2	customer	10
 }
 ROADS {
 	D1	D2 	10	20	30
