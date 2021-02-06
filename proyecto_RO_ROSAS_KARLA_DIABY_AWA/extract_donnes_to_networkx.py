@@ -7,6 +7,7 @@ import networkx as nx
 def extract_donnes(file_path):
 
     graph =nx.DiGraph()
+    Entity =[]
 
     with open(file_path, 'r') as f_in:
         # Extract data from header
@@ -24,7 +25,10 @@ def extract_donnes(file_path):
                 block = ''
             elif block == 'ENTITIES':
                 id, type, b_entity = line_split
+                objet = creationEntity(id, type, b_entity)
+                Entity.append(objet)
                 graph.add_node(id,type=type, entity=b_entity)
+
 
             elif block == 'ROADS':
 
@@ -39,7 +43,8 @@ def extract_donnes(file_path):
             else:
                 exit(f'ERROR: line = {line}')
 
-    return graph,p, start, n_clientsuppr, n_depsuppr
+
+    return graph,p, start, n_clientsuppr, n_depsuppr,Entity
 
 
 
@@ -48,3 +53,29 @@ def add_edge(graph,start,end, cap_road, alpha_r, beta_r):
     graph.add_edge(start,end, cap=cap_road, essence=alpha_r, tauxdou = beta_r)
 
 
+#Creation d'objet Entity
+class Entity:
+    id = ''
+    type = ''
+    b_entity = ''
+
+    def print_information(self,id,type,b_entity):
+        print(self.id)
+        print(self.type)
+        print(self.b_entity)
+
+
+#Instantiation d'objet Entity
+def creationEntity(id, type, b_entity):
+    entity1 = Entity()
+    entity1.id = id
+    entity1.type = type
+    entity1.b_entity = b_entity
+    #print("Id, type, entity",entity1.id,entity1.type,entity1.b_entity)
+
+    return entity1
+
+#Main test
+if __name__ == '__main__':
+    file_path = './truck_instance_base.data'
+    extract_donnes(file_path)

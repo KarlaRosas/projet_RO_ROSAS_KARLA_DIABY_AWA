@@ -2,109 +2,156 @@
 from proyecto_RO_ROSAS_KARLA_DIABY_AWA.extract_donnes_to_networkx import extract_donnes
 import pulp as pl
 import networkx as nx
+from pulp import *
 from pathlib import Path
 # ============================================================================ #
 #                                  SET MODEL                                   #
 # ============================================================================ #
 
 
-def set_model_cout_net(graph,p, start, n_clientsuppr, n_depsuppr):
+def set_model_cout_net(graph,p, start, n_clientsuppr, n_depsuppr, Entity):
     """Set the coût net problem's model."""
 
-    p =int(p)
+    # ------------------------------------------------------------------------ #
+    # Linear problem with minimization
+    # ------------------------------------------------------------------------ #
+
+    # ------------------------------------------------------------------------ #
+    # Constants
+    # ------------------------------------------------------------------------ #
+    p = int(p)
     n_clientsuppr = int(n_clientsuppr)
     n_depsuppr = int(n_depsuppr)
-    # ------------------------------------------------------------------------ #
-    # Linear problem with maximisation
-    # ------------------------------------------------------------------------ #
 
-    prob = pl.LpProblem(name='The_benefice_max_net_problem', sense=pl.LpMaximize)
 
-    #minimiser le cout et maxime le benefice*
 
     # ------------------------------------------------------------------------ #
     # The variables
     # ------------------------------------------------------------------------ #
-    #Variables pour les edge ROUTE
-    x_routes = {}
-    depots = []
-    clients=[]
+    #Listes - Dictionnaires
+    DEPOT_OBJ, CLIENTS_OBJ= SeparetEntityObjet(Entity)  #Liste d'objet type entity
+    DEPOT = ObtenirEntity(DEPOT_OBJ) #Depots
+    CLIENT = ObtenirEntity(CLIENTS_OBJ) #Clients
+    ListEnStock = ListeStock(DEPOT_OBJ)  #Qté de stock en Depot
+    STOCK = ListaStockPrix(DEPOT, ListEnStock)   #Qté de stock en Depot, Prix Unitaire 1000
+    APROVIS = dict(zip(DEPOT, STOCK))
+    DEMANDE = DictionaireDemande(CLIENTS_OBJ, CLIENT)
+
+    #Cout unitaire par route
+    COUTS = [
+        # C1 C2
+        [10, 10],  # D1
+        [10, 10],  # D2
+        [10, 10],  # D3
+
+    ]
+
+   #Creation de routes
+    ROUTES = [(p, s) for p in DEPOT for s in CLIENT]
+
+    (supply, CoutFixe) = splitDict(APROVIS)
+    COUTS = makeDict([DEPOT, CLIENT], COUTS, 0)
+
+    print("ROUTES",ROUTES)
+    print("CLIENTS", CLIENT)
+    print("DEPOT", DEPOT)
+    print("APROVISIONNEMENT", APROVIS)
+    print("STOCK", STOCK)
+    print("DEMANDE", DEMANDE)
 
 
-    flow = pl.LpVariable.dicts("Route", (depots, clients), 0, None, pl.LpInteger)
 
+    flow = pl.LpVariable.dicts("Route", (DEPOT, CLIENT), 0, None, pl.LpInteger)
 
+    DepotActive = pl.LpVariable.dicts("DepotActive", DEPOT, 0, 1, LpInteger)
 
-
-    #Depot
-    for u in graph.nodes():
-        if(graph.nodes()[u]['type']=='depot'):
-            depots.append(graph.nodes()[u])
-        else:
-            clients.append(graph.nodes()[u])
-
-    print("DEPOTS-------",depots)
-    print("CLIENTS-------", clients)
-
-
-    for (u, v) in graph.edges():
-
-        # Add the edges binaries
-        x_routes[(u, v)] = pl.LpVariable(f'route_{u}_{v}', cat=pl.LpBinary)
-
-        if not nx.is_directed(graph):
-            # because in undirected graph we can go from both directions
-            x_routes[(v, u)] = pl.LpVariable(f'route_{v}_{u}', cat=pl.LpBinary)
-
-    print("Variable routes----------------",x_routes)
-
-
-    for u in graph.nodes():
-        if(graph.nodes()[u]['type']=='depot'):
-            print("Holis",graph.nodes()[u])
-        else:
-            print("Sad", graph.nodes()[u])
-
-
-    ##FLOW - QUANTITE GPU
-    #gpu = pl.LpVariable('gpu', lowBound=0, cat=pl.LpInteger)
-
+    prob = pl.LpProblem(name="Maximisation du benefice net", sense=LpMinimize)
 
 
     # ---------------------------------------------------------------------------- #
-    # The objective function
+    # The objective function - Minimiser les couts
     # ------------------------------------------------------------------------ #
 
+    prob += pl.lpSum([flow[d][c] * COUTS[d][c] for (d, c) in ROUTES]) + pl.lpSum(
+        [CoutFixe[d] * DepotActive[d] for d in DEPOT]), "Total Costs"
 
-    prob +=  pl.lpSum(x_routes[(u, v)] * (graph.edges()[u, v]['essence']+ graph.edges()[u, v]['tauxdou'])
-                     for (u, v) in graph.edges() ) , 'minimize_the_cut'
     # ------------------------------------------------------------------------ #
-    # The constraints")
+    # The constraints
+    # ------------------------------------------------------------------------ #
 
+    # qr-Client  <=  qr-Depot
+    for d in DEPOT:
+        prob += pl.lpSum([flow[d][c] for c in CLIENT]) <= supply[d] * DepotActive[d], "Somme de produits dehors du DEPOT %s" % d
+        #
+    # qr Depot >= qr Demande
+    for c in CLIENT:
+        prob += pl.lpSum([flow[d][c] for d in DEPOT]) >= DEMANDE[c], "Somme de produits avec le CLIENT %s" % c
 
-
-
+    # ------------------------------------------------------------------------ #
 
     return prob
 
-def calcul_d_mult_PHI_0(v, flow):
-    """Return the equation part d_v x PHI_0."""
-    equation = 0
-    if v == 'D1':
-        equation -= flow
-    elif v == 'D2':
-        equation += flow
-    return equation
 
 
-def calcul_A_mult_PHI(graph, v, d_edge_flow):
-    """Return the equation part a_v x PHI_v."""
-    equation = 0
-    for u in graph.predecessors(v):
-        equation -= d_edge_flow[u, v]
-    for w in graph.successors(v):
-        equation += d_edge_flow[v, w]
-    return equation
+def PrintList(list, atribut):
+    for indice, valor in enumerate(list):
+        id=atribut
+        print(f'Position {indice} est {valor.id}')
+
+def SeparetEntityObjet(list):
+    DEPOT = []
+    CLIENTS = []
+
+    for indice, valor in enumerate(list):
+        if(valor.type=='depot'):
+            DEPOT.append(valor)
+
+        else:
+            CLIENTS.append(valor)
+    return DEPOT,CLIENTS
+
+def ObtenirEntity(list):
+    EntityID = []
+    for indice, valor in enumerate(list):
+            id= str(valor.id)
+            EntityID.append(id)
+
+    return EntityID
+
+def EntityDepotPrixU(list, indice,PrixGPU):
+    LISTA=[]
+    LISTA.append(list[indice])
+    LISTA.append(PrixGPU)
+
+    return LISTA
+
+def ListeStock(list):
+    ListeStock=[]
+    for indice, valor in enumerate(list):
+        #print(f'Position {indice} es {valor.b_entity}')
+        quantite=int(valor.b_entity)
+        ListeStock.append(abs(quantite))
+
+    return ListeStock
+
+def DictionaireDemande(listeObj, liste):
+
+    ListeDemande=[]
+    for indice, valor in enumerate(listeObj):
+        #print(f'Position {indice} es {valor.b_entity}')
+        quantite=int(valor.b_entity)
+        ListeDemande.append(abs(quantite))
+
+    demande= dict(zip(liste,ListeDemande))
+    #print("Liste demande",demande)
+    return demande
+
+def ListaStockPrix(DEPOT, ListEnStock):
+    STOCK=[]
+    for x in range(len(DEPOT)):
+        LISTA = EntityDepotPrixU(ListEnStock, x, 1000)
+        STOCK.append(LISTA)
+    return STOCK
 
 
 
@@ -128,15 +175,22 @@ def solve_cout_net():
 #Main test
 if __name__ == '__main__':
 
-    # Main test
-    if __name__ == '__main__':
 
         file_path = 'truck_instance_base.data'
-        graph, p, start, n_clientsuppr, n_depsuppr = extract_donnes(file_path)
-        # solve_cout_net()
-        prob = set_model_cout_net(graph, p, start, n_clientsuppr, n_depsuppr)
-        prob.solve(pl.PULP_CBC_CMD(logPath='./output_file/CBC_max_flow.log'))
+        graph, p, start, n_clientsuppr, n_depsuppr, Entity = extract_donnes(file_path)
+
+        prob = set_model_cout_net(graph, p, start, n_clientsuppr, n_depsuppr,Entity)
+        #prob.solve(pl.PULP_CBC_CMD(logPath='./output_file/CBC_max_flow.log'))
         prob.solve(pl.PULP_CBC_CMD())
+
+        gpu = pl.LpVariable("gpi", LpInteger)
+        Benefice = pl.LpVariable("Benefice", LpInteger)
+
+        #Optimal
+        print("Status:", pl.LpStatus[prob.status])
+
+
+
         nx.write_graphml(graph, "graph_routes.graphml")
         # ------------------------------------------------------------------------ #
         # Print the solver output
@@ -148,5 +202,15 @@ if __name__ == '__main__':
         print()
 
         # Each of the variables is printed with it's resolved optimum value
+
+
         for v in prob.variables():
-            print(v.name, '=', v.varValue)
+            print(v.name, "=", v.varValue)
+            gpu += int(v.varValue)
+
+        # The optimised objective function value is printed to the screen
+        print("GPU VENDUS", prob.variables()[3].varValue + prob.variables()[4].varValue + prob.variables()[5].varValue +
+              prob.variables()[6].varValue + prob.variables()[7].varValue)
+        print("Benefice max net GPU (VENDU*1000)-(COUTS)=", (
+                    prob.variables()[3].varValue + prob.variables()[4].varValue + prob.variables()[5].varValue +
+                    prob.variables()[6].varValue + prob.variables()[7].varValue) * 1000 - value(prob.objective))
