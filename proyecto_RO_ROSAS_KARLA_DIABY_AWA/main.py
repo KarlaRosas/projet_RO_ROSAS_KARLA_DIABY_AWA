@@ -4,13 +4,15 @@
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 
 
-def print_hi(name):
+def Presentation():
     # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
+    print("PROJET RO-Maximisation du benefice")  # Press Ctrl+F8 to toggle the breakpoint.
+    print("Binôme")
+    print("ROSAS Karla et DIABY Awa")
 
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    print_hi('PyCharm')
+    Presentation()
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/

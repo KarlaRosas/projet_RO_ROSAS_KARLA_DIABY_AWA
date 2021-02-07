@@ -22,9 +22,9 @@ def set_model_cout_net(graph,p, start, n_clientsuppr, n_depsuppr, Entity):
     p = int(p)
     n_clientsuppr = int(n_clientsuppr)
     n_depsuppr = int(n_depsuppr)
+    ALPHA= graph.edges()['D1', 'D2']['essence']
 
-
-
+    print("PRIX ESSENCE",ALPHA)
     # ------------------------------------------------------------------------ #
     # The variables
     # ------------------------------------------------------------------------ #
@@ -33,21 +33,25 @@ def set_model_cout_net(graph,p, start, n_clientsuppr, n_depsuppr, Entity):
     DEPOT = ObtenirEntity(DEPOT_OBJ) #Depots
     CLIENT = ObtenirEntity(CLIENTS_OBJ) #Clients
     ListEnStock = ListeStock(DEPOT_OBJ)  #Qté de stock en Depot
-    STOCK = ListaStockPrix(DEPOT, ListEnStock)   #Qté de stock en Depot, Prix Unitaire 1000
+    STOCK = ListaStockPrix(DEPOT, ListEnStock,0)   #Qté de stock en Depot, AutresCoutsDepot
     APROVIS = dict(zip(DEPOT, STOCK))
     DEMANDE = DictionaireDemande(CLIENTS_OBJ, CLIENT)
 
     #Cout unitaire par route
-    COUTS = [
+    #COUTS = [
         # C1 C2
-        [10, 10],  # D1
-        [10, 10],  # D2
-        [10, 10],  # D3
+    #    [10, 10],  # D1
+     #   [10, 10],  # D2
+      #  [10, 10],  # D3
 
-    ]
+    #]
 
    #Creation de routes
     ROUTES = [(p, s) for p in DEPOT for s in CLIENT]
+
+
+    COUTS = [[graph.edges()[p, s]['essence'], graph.edges()[p, s]['essence']] for p in DEPOT for s in CLIENT]
+    print("COSTO",COUTS)
 
     (supply, CoutFixe) = splitDict(APROVIS)
     COUTS = makeDict([DEPOT, CLIENT], COUTS, 0)
@@ -72,8 +76,7 @@ def set_model_cout_net(graph,p, start, n_clientsuppr, n_depsuppr, Entity):
     # The objective function - Minimiser les couts
     # ------------------------------------------------------------------------ #
 
-    prob += pl.lpSum([flow[d][c] * COUTS[d][c] for (d, c) in ROUTES]) + pl.lpSum(
-        [CoutFixe[d] * DepotActive[d] for d in DEPOT]), "Total Costs"
+    prob += pl.lpSum([flow[d][c] * COUTS[d][c] for (d, c) in ROUTES]) , "Total Costs"
 
     # ------------------------------------------------------------------------ #
     # The constraints
@@ -146,41 +149,24 @@ def DictionaireDemande(listeObj, liste):
     #print("Liste demande",demande)
     return demande
 
-def ListaStockPrix(DEPOT, ListEnStock):
+def ListaStockPrix(DEPOT, ListEnStock,AutresCosts):
     STOCK=[]
     for x in range(len(DEPOT)):
-        LISTA = EntityDepotPrixU(ListEnStock, x, 1000)
+        LISTA = EntityDepotPrixU(ListEnStock, x, AutresCosts)
         STOCK.append(LISTA)
     return STOCK
 
 
-
-def solve_cout_net():
-    """Solve the simple example."""
-    # ------------------------------------------------------------------------ #
-    # Set data
-    # ------------------------------------------------------------------------ #
-
-
-    # ------------------------------------------------------------------------ #
-    # Solve the problem using the model
-    # ------------------------------------------------------------------------ #
-
-
-    # ------------------------------------------------------------------------ #
-    # Print the solver output
-    # ------------------------------------------------------------------------ #
-
-
-#Main test
 if __name__ == '__main__':
 
-
-        file_path = 'truck_instance_base.data'
+        file_path = '../data/truck_instance_base.data'
+        graph, p, start, n_clientsuppr, n_depsuppr, Entity = extract_donnes(file_path)
+        file_path = '../data/truck_instance_base.data'
         graph, p, start, n_clientsuppr, n_depsuppr, Entity = extract_donnes(file_path)
 
         prob = set_model_cout_net(graph, p, start, n_clientsuppr, n_depsuppr,Entity)
-        #prob.solve(pl.PULP_CBC_CMD(logPath='./output_file/CBC_max_flow.log'))
+
+        prob.solve(pl.PULP_CBC_CMD(logPath='./output_file/CBC_max_flow.log'))
         prob.solve(pl.PULP_CBC_CMD())
 
         gpu = pl.LpVariable("gpi", LpInteger)
