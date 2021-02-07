@@ -50,12 +50,12 @@ def set_model_cout_net(graph,p, start, n_clientsuppr, n_depsuppr, Entity):
     (supply, CoutFixe) = splitDict(APROVIS)
     COUTS = makeDict([DEPOT, CLIENT], COUTS, 0)
 
-    #print("ROUTES",ROUTES)
-    #print("CLIENTS", CLIENT)
-    #print("DEPOT", DEPOT)
-    #print("APROVISIONNEMENT", APROVIS)
-    #print("STOCK", STOCK)
-    #print("DEMANDE", DEMANDE)
+    print("ROUTES",ROUTES)
+    print("CLIENTS", CLIENT)
+    print("DEPOT", DEPOT)
+    print("APROVISIONNEMENT", APROVIS)
+    print("STOCK", STOCK)
+    print("DEMANDE", DEMANDE)
 
 
 
@@ -64,7 +64,7 @@ def set_model_cout_net(graph,p, start, n_clientsuppr, n_depsuppr, Entity):
 
     #DepotActive = pl.LpVariable.dicts("DepotActive", DEPOT, 0, 1, LpInteger)
 
-    prob = pl.LpProblem(name="Maximisation du benefice net", sense=LpMinimize)
+    prob = pl.LpProblem(name="Maximisation du benefice net en minimise le coût", sense=LpMinimize)
 
 
     # ---------------------------------------------------------------------------- #
@@ -72,6 +72,8 @@ def set_model_cout_net(graph,p, start, n_clientsuppr, n_depsuppr, Entity):
     # ------------------------------------------------------------------------ #
 
     #prob += pl.lpSum([flow[d][c] * COUTS[d][c] for (d, c) in ROUTES]) , "Total Costs"
+
+
     prob += pl.lpSum([flow[d][c] * graph.edges()[d, c]['tauxdou']   for (d, c) in ROUTES]) , "Total Costs"
     # ------------------------------------------------------------------------ #
     # The constraints
