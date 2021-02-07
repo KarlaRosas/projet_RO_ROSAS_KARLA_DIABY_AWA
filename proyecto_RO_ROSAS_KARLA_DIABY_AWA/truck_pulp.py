@@ -22,9 +22,9 @@ def set_model_cout_net(graph,p, start, n_clientsuppr, n_depsuppr, Entity):
     p = int(p)
     n_clientsuppr = int(n_clientsuppr)
     n_depsuppr = int(n_depsuppr)
-    ALPHA= graph.edges()['D1', 'D2']['essence']
 
-    print("PRIX ESSENCE",ALPHA)
+
+
     # ------------------------------------------------------------------------ #
     # The variables
     # ------------------------------------------------------------------------ #
@@ -36,22 +36,16 @@ def set_model_cout_net(graph,p, start, n_clientsuppr, n_depsuppr, Entity):
     STOCK = ListaStockPrix(DEPOT, ListEnStock,0)   #Qté de stock en Depot, AutresCoutsDepot
     APROVIS = dict(zip(DEPOT, STOCK))
     DEMANDE = DictionaireDemande(CLIENTS_OBJ, CLIENT)
+    COUTSTAUXDOU = [graph.edges()[p, s]['tauxdou'] for p in DEPOT for s in CLIENT] # COUTS DE ESSENCE PAR ROUTE
+    print("COSTO BETA", COUTSTAUXDOU)
 
-    #Cout unitaire par route
-    #COUTS = [
-        # C1 C2
-    #    [10, 10],  # D1
-     #   [10, 10],  # D2
-      #  [10, 10],  # D3
 
-    #]
-
-   #Creation de routes
+    #Creation de routes
     ROUTES = [(p, s) for p in DEPOT for s in CLIENT]
 
-
+    #COUTS DE ESSENCE PAR ROUTE
     COUTS = [[graph.edges()[p, s]['essence'], graph.edges()[p, s]['essence']] for p in DEPOT for s in CLIENT]
-    print("COSTO",COUTS)
+    print("COSTO ESCENCE PAR ROUTE",COUTS)
 
     (supply, CoutFixe) = splitDict(APROVIS)
     COUTS = makeDict([DEPOT, CLIENT], COUTS, 0)
@@ -67,7 +61,7 @@ def set_model_cout_net(graph,p, start, n_clientsuppr, n_depsuppr, Entity):
 
     flow = pl.LpVariable.dicts("Route", (DEPOT, CLIENT), 0, None, pl.LpInteger)
 
-    DepotActive = pl.LpVariable.dicts("DepotActive", DEPOT, 0, 1, LpInteger)
+    #DepotActive = pl.LpVariable.dicts("DepotActive", DEPOT, 0, 1, LpInteger)
 
     prob = pl.LpProblem(name="Maximisation du benefice net", sense=LpMinimize)
 
@@ -84,7 +78,7 @@ def set_model_cout_net(graph,p, start, n_clientsuppr, n_depsuppr, Entity):
 
     # qr-Client  <=  qr-Depot
     for d in DEPOT:
-        prob += pl.lpSum([flow[d][c] for c in CLIENT]) <= supply[d] * DepotActive[d], "Somme de produits dehors du DEPOT %s" % d
+        prob += pl.lpSum([flow[d][c] for c in CLIENT]) <= supply[d], "Somme de produits dehors du DEPOT %s" % d
         #
     # qr Depot >= qr Demande
     for c in CLIENT:
@@ -92,7 +86,7 @@ def set_model_cout_net(graph,p, start, n_clientsuppr, n_depsuppr, Entity):
 
     # ------------------------------------------------------------------------ #
 
-    return prob
+    return prob,COUTSTAUXDOU
 
 
 
@@ -164,12 +158,14 @@ if __name__ == '__main__':
         file_path = '../data/truck_instance_base.data'
         graph, p, start, n_clientsuppr, n_depsuppr, Entity = extract_donnes(file_path)
 
-        prob = set_model_cout_net(graph, p, start, n_clientsuppr, n_depsuppr,Entity)
+        prob,COUTSTAUXDOU = set_model_cout_net(graph, p, start, n_clientsuppr, n_depsuppr,Entity)
 
         prob.solve(pl.PULP_CBC_CMD(logPath='./output_file/CBC_max_flow.log'))
         prob.solve(pl.PULP_CBC_CMD())
 
-        gpu = pl.LpVariable("gpi", LpInteger)
+        qr  = pl.LpVariable("qr", LpInteger)
+        gpu = pl.LpVariable("QteGPU", LpInteger)
+        coutsTotal = pl.LpVariable("coutsTotal", LpInteger)
         Benefice = pl.LpVariable("Benefice", LpInteger)
 
         #Optimal
@@ -189,14 +185,18 @@ if __name__ == '__main__':
 
         # Each of the variables is printed with it's resolved optimum value
 
-
         for v in prob.variables():
             print(v.name, "=", v.varValue)
             gpu += int(v.varValue)
 
+
+        qr = pl.lpSum(prob.variables()[x].varValue for x in range(len(prob.variables())))
+        print("GPU Vendus : ", qr)
+        qrPrix = pl.lpSum(1000 * prob.variables()[x].varValue for x in range(len(prob.variables())))
+        print("GPU Vendus * prix unitaire CH= ", qrPrix,"euros")
+
+        coutsTauxduo= pl.lpSum((30*prob.variables()[x].varValue for x in range(len(prob.variables()))))
+        print("Cout Taux Duo: ", coutsTauxduo, "euros")
+
         # The optimised objective function value is printed to the screen
-        print("GPU VENDUS", prob.variables()[3].varValue + prob.variables()[4].varValue + prob.variables()[5].varValue +
-              prob.variables()[6].varValue + prob.variables()[7].varValue)
-        print("Benefice max net GPU (VENDU*1000)-(COUTS)=", (
-                    prob.variables()[3].varValue + prob.variables()[4].varValue + prob.variables()[5].varValue +
-                    prob.variables()[6].varValue + prob.variables()[7].varValue) * 1000 - value(prob.objective))
+        print("Benefice max net GPU (GPU vendus * 1000)-(GPU vendus * Taux douanière + COUTS TRASNPORT)=", (qrPrix - (value(prob.objective)+coutsTauxduo)))
