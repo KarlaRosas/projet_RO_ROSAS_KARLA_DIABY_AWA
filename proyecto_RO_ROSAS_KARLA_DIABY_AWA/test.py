@@ -10,26 +10,24 @@ if __name__ == '__main__':
 
         file_path = '../data/truck_instance_base.data'
         graph, p, start, n_clientsuppr, n_depsuppr, Entity = extract_donnes(file_path)
-        file_path = '../data/truck_instance_base.data'
-        graph, p, start, n_clientsuppr, n_depsuppr, Entity = extract_donnes(file_path)
-
-        prob,COUTSTAUXDOU = set_model_cout_net(graph, p, start, n_clientsuppr, n_depsuppr,Entity)
-
-        prob.solve(pl.PULP_CBC_CMD(logPath='./output_file/CBC_max_flow.log'))
-        prob.solve(pl.PULP_CBC_CMD())
-
-        gpu = pl.LpVariable("gpi", LpInteger)
-        Benefice = pl.LpVariable("Benefice", LpInteger)
-
-        #Optimal
-        print("Status:", pl.LpStatus[prob.status])
-
-
+        prob = set_model_cout_net(graph, p, start, n_clientsuppr, n_depsuppr,Entity)
         nx.write_graphml(graph, "graph_routes.graphml")
+        #Minimisation de couts
+        prob.solve()
+
+        #Variables
+        qr  = pl.LpVariable("qr", LpInteger)
+        gpu = pl.LpVariable("QteGPU", LpInteger)
+        coutsTotal = pl.LpVariable("coutsTotal", LpInteger)
+        Benefice = pl.LpVariable("Benefice", LpInteger)
+        Route_utilises=0
+
+
         # ------------------------------------------------------------------------ #
         # Print the solver output
         # ------------------------------------------------------------------------ #
-        print(f'Status:\n{pl.LpStatus[prob.status]}')
+        #Optimal
+        print("Status:", pl.LpStatus[prob.status])
 
         print()
         print('-' * 40)
@@ -37,14 +35,22 @@ if __name__ == '__main__':
 
         # Each of the variables is printed with it's resolved optimum value
 
-
         for v in prob.variables():
+
             print(v.name, "=", v.varValue)
             gpu += int(v.varValue)
+            if(v.varValue!=0):
+                Route_utilises+=1
+
+
+        #Presentation de resultats
+        print("Total Costs = ", value(prob.objective))
+        print("Route_utilises", Route_utilises)
+        qr = pl.lpSum(prob.variables()[x].varValue for x in range(len(prob.variables())))
+        print("GPU Vendus : ", qr)
+
+        qrPrix = pl.lpSum(1000 * prob.variables()[x].varValue for x in range(len(prob.variables())))
+        print("GPU Vendus * prix unitaire CH= ", qrPrix,"euros")
 
         # The optimised objective function value is printed to the screen
-        print("GPU VENDUS", prob.variables()[0].varValue + prob.variables()[1].varValue + prob.variables()[2].varValue +
-              prob.variables()[3].varValue + prob.variables()[4].varValue)
-        print("Benefice max net GPU (VENDU*1000)-(COUTS)=", (
-                    prob.variables()[0].varValue + prob.variables()[1].varValue + prob.variables()[2].varValue +
-                    prob.variables()[3].varValue + prob.variables()[4].varValue) * 1000 - value(prob.objective))
+        print("Benefice max net GPU CH - Couts Totals=", qrPrix - (value(prob.objective)+Route_utilises*20), "euros")

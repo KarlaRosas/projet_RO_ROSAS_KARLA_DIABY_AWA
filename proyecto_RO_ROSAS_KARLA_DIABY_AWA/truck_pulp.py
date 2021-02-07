@@ -37,7 +37,7 @@ def set_model_cout_net(graph,p, start, n_clientsuppr, n_depsuppr, Entity):
     APROVIS = dict(zip(DEPOT, STOCK))
     DEMANDE = DictionaireDemande(CLIENTS_OBJ, CLIENT)
     COUTSTAUXDOU = [graph.edges()[p, s]['tauxdou'] for p in DEPOT for s in CLIENT] # COUTS DE ESSENCE PAR ROUTE
-    print("COSTO BETA", COUTSTAUXDOU)
+
 
 
     #Creation de routes
@@ -45,21 +45,22 @@ def set_model_cout_net(graph,p, start, n_clientsuppr, n_depsuppr, Entity):
 
     #COUTS DE ESSENCE PAR ROUTE
     COUTS = [[graph.edges()[p, s]['essence'], graph.edges()[p, s]['essence']] for p in DEPOT for s in CLIENT]
-    print("COSTO ESCENCE PAR ROUTE",COUTS)
+
 
     (supply, CoutFixe) = splitDict(APROVIS)
     COUTS = makeDict([DEPOT, CLIENT], COUTS, 0)
 
-    print("ROUTES",ROUTES)
-    print("CLIENTS", CLIENT)
-    print("DEPOT", DEPOT)
-    print("APROVISIONNEMENT", APROVIS)
-    print("STOCK", STOCK)
-    print("DEMANDE", DEMANDE)
+    #print("ROUTES",ROUTES)
+    #print("CLIENTS", CLIENT)
+    #print("DEPOT", DEPOT)
+    #print("APROVISIONNEMENT", APROVIS)
+    #print("STOCK", STOCK)
+    #print("DEMANDE", DEMANDE)
 
 
 
     flow = pl.LpVariable.dicts("Route", (DEPOT, CLIENT), 0, None, pl.LpInteger)
+    flowB = pl.LpVariable.dicts("Route", (DEPOT, CLIENT), 0, None, pl.LpBinary)
 
     #DepotActive = pl.LpVariable.dicts("DepotActive", DEPOT, 0, 1, LpInteger)
 
@@ -70,8 +71,8 @@ def set_model_cout_net(graph,p, start, n_clientsuppr, n_depsuppr, Entity):
     # The objective function - Minimiser les couts
     # ------------------------------------------------------------------------ #
 
-    prob += pl.lpSum([flow[d][c] * COUTS[d][c] for (d, c) in ROUTES]) , "Total Costs"
-
+    #prob += pl.lpSum([flow[d][c] * COUTS[d][c] for (d, c) in ROUTES]) , "Total Costs"
+    prob += pl.lpSum([flow[d][c] * graph.edges()[d, c]['tauxdou']   for (d, c) in ROUTES]) , "Total Costs"
     # ------------------------------------------------------------------------ #
     # The constraints
     # ------------------------------------------------------------------------ #
@@ -84,9 +85,12 @@ def set_model_cout_net(graph,p, start, n_clientsuppr, n_depsuppr, Entity):
     for c in CLIENT:
         prob += pl.lpSum([flow[d][c] for d in DEPOT]) >= DEMANDE[c], "Somme de produits avec le CLIENT %s" % c
 
+
+
     # ------------------------------------------------------------------------ #
 
-    return prob,COUTSTAUXDOU
+
+    return prob
 
 
 
@@ -160,14 +164,14 @@ if __name__ == '__main__':
 
         prob,COUTSTAUXDOU = set_model_cout_net(graph, p, start, n_clientsuppr, n_depsuppr,Entity)
 
-        prob.solve(pl.PULP_CBC_CMD(logPath='./output_file/CBC_max_flow.log'))
-        prob.solve(pl.PULP_CBC_CMD())
+        #prob.solve(pl.PULP_CBC_CMD(logPath='./output_file/CBC_max_flow.log'))
+        prob.solve()
 
         qr  = pl.LpVariable("qr", LpInteger)
         gpu = pl.LpVariable("QteGPU", LpInteger)
         coutsTotal = pl.LpVariable("coutsTotal", LpInteger)
         Benefice = pl.LpVariable("Benefice", LpInteger)
-
+        Route_utilises=0
         #Optimal
         print("Status:", pl.LpStatus[prob.status])
 
@@ -186,17 +190,19 @@ if __name__ == '__main__':
         # Each of the variables is printed with it's resolved optimum value
 
         for v in prob.variables():
+
             print(v.name, "=", v.varValue)
             gpu += int(v.varValue)
+            if(v.varValue!=0):
+                Route_utilises+=1
 
-
+        print("Total Costs = ", value(prob.objective))
+        print("Route_utilises",Route_utilises)
         qr = pl.lpSum(prob.variables()[x].varValue for x in range(len(prob.variables())))
         print("GPU Vendus : ", qr)
+
         qrPrix = pl.lpSum(1000 * prob.variables()[x].varValue for x in range(len(prob.variables())))
         print("GPU Vendus * prix unitaire CH= ", qrPrix,"euros")
 
-        coutsTauxduo= pl.lpSum((30*prob.variables()[x].varValue for x in range(len(prob.variables()))))
-        print("Cout Taux Duo: ", coutsTauxduo, "euros")
-
         # The optimised objective function value is printed to the screen
-        print("Benefice max net GPU (GPU vendus * 1000)-(GPU vendus * Taux douanière + COUTS TRASNPORT)=", (qrPrix - (value(prob.objective)+coutsTauxduo)))
+        print("Benefice max net GPU CH - Couts Totals=", qrPrix - (value(prob.objective)+Route_utilises*20))
